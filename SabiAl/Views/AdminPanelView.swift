@@ -102,6 +102,7 @@ struct AdminPanelView: View {
 
     @State private var newPIN = ""
     @State private var pinSavedNotice = false
+    @State private var provider = ""
 
     var body: some View {
         NavigationStack {
@@ -119,6 +120,7 @@ struct AdminPanelView: View {
                     Button("Dil", action: onLock)
                 }
             }
+            .onAppear(perform: syncProvider)
         }
     }
 
@@ -154,7 +156,7 @@ struct AdminPanelView: View {
         Section {
             Picker("Motori i AI-së", selection: $engine) {
                 Text("Apple Intelligence (pa pagesë)").tag("apple")
-                Text("OpenAI API (me çelës)").tag("openai")
+                Text("API e AI-së (me çelës)").tag("openai")
             }
 
             if engine == "apple" {
@@ -166,6 +168,13 @@ struct AdminPanelView: View {
                         .foregroundStyle(.green)
                 }
             } else {
+                Picker("Shërbimi", selection: $provider) {
+                    Text("OpenAI").tag("openai")
+                    Text("Google Gemini (tier falas)").tag("gemini")
+                    Text("Tjetër (endpoint vetjak)").tag("custom")
+                }
+                .onChange(of: provider) { applyProvider() }
+
                 TextField("Adresa e API-së", text: $endpoint)
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)
@@ -184,6 +193,9 @@ struct AdminPanelView: View {
                             .foregroundStyle(.orange)
                     }
                 }
+
+                Link("Merr një çelës falas në Google AI Studio",
+                     destination: URL(string: "https://aistudio.google.com/apikey")!)
             }
 
             LabeledContent("Kreativiteti") {
@@ -197,11 +209,37 @@ struct AdminPanelView: View {
             Text("Lidhja me AI-në")
         } footer: {
             Text("""
-                Apple Intelligence punon vetë në iPhone — është pa pagesë dhe pa çelës. \
-                Nëse zgjidhet OpenAI, çelësi OPENAI_API_KEY futet vetëm një herë, \
-                nëpërmjet kartës së çelësit që shfaqet në aplikacion. \
-                Kreativiteti i lë lirinë përgjigjeve.
+                Apple Intelligence punon vetë në iPhone — pa pagesë dhe pa çelës. \
+                Për përgjigje të plota nga një AI e vërtetë, zgjidhni API-në: \
+                çelësi OPENAI_API_KEY futet vetëm njëherë, nëpërmjet kartës së çelësit \
+                në aplikacion, dhe një çelës falas i Google Gemini merret te \
+                aistudio.google.com/apikey. Kreativiteti i lë lirinë përgjigjeve.
                 """)
+        }
+    }
+
+    /// Fills the endpoint and model for the chosen service preset.
+    private func applyProvider() {
+        switch provider {
+        case "gemini":
+            endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+            model = "gemini-2.0-flash"
+        case "openai":
+            endpoint = BotSettings.Defaults.endpoint
+            model = BotSettings.Defaults.model
+        default:
+            break
+        }
+    }
+
+    /// Reflects the current endpoint as the active preset.
+    private func syncProvider() {
+        if endpoint.contains("generativelanguage") {
+            provider = "gemini"
+        } else if endpoint.contains("openai.com") {
+            provider = "openai"
+        } else {
+            provider = "custom"
         }
     }
 
