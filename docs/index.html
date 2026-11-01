@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SabiAl</title>
+<meta name="description" content="Asistent bisedues AI në shqip">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0dada3">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
+<style>
+  :root {
+    --accent: #0dada3;
+    --bg: #f2f6f7;
+    --surface: #ffffff;
+    --surface2: #e9eff0;
+    --text: #16232b;
+    --text2: #6b7a82;
+    --danger: #d64545;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1b2d;
+      --surface: #1a2a40;
+      --surface2: #24374f;
+      --text: #eef4f6;
+      --text2: #93a4b0;
+    }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    padding-top: calc(12px + env(safe-area-inset-top));
+    background: var(--surface);
+    border-bottom: 1px solid var(--surface2);
+  }
+  header h1 { font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  header h1 .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+  header button {
+    background: none; border: none; cursor: pointer; color: var(--text2);
+    padding: 6px; border-radius: 8px;
+  }
+  header button:active { background: var(--surface2); }
+
+  main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 12px calc(16px + env(safe-area-inset-bottom));
+    scroll-behavior: smooth;
+  }
+
+  .bubble-row { display: flex; margin-bottom: 10px; }
+  .bubble-row.user { justify-content: flex-end; }
+  .bubble {
+    max-width: 78%;
+    padding: 10px 14px;
+    border-radius: 18px;
+    font-size: 15.5px;
+    line-height: 1.45;
+    word-break: break-word;
+    white-space: pre-wrap;
+    animation: pop .18s ease-out;
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(6px) scale(.97); } to { opacity: 1; transform: none; } }
+  .bubble.user { background: var(--accent); color: #fff; border-bottom-right-radius: 6px; }
+  .bubble.bot { background: var(--surface); border-bottom-left-radius: 6px; box-shadow: 0 1px 2px rgb(0 0 0 / .06); }
+  .bubble .time { display: block; font-size: 10.5px; opacity: .55; margin-top: 3px; }
+
+  .typing { display: flex; gap: 5px; padding: 14px 16px; background: var(--surface); border-radius: 18px; width: fit-content; margin-bottom: 10px; }
+  .typing span { width: 8px; height: 8px; border-radius: 50%; background: var(--text2); animation: bounce .9s infinite; }
+  .typing span:nth-child(2) { animation-delay: .15s; }
+  .typing span:nth-child(3) { animation-delay: .3s; }
+  @keyframes bounce { 0%, 60%, 100% { transform: none; opacity: .45; } 30% { transform: translateY(-5px); opacity: 1; } }
+
+  footer {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    background: var(--surface);
+    border-top: 1px solid var(--surface2);
+  }
+  footer textarea {
+    flex: 1;
+    resize: none;
+    border: none;
+    outline: none;
+    background: var(--surface2);
+    color: var(--text);
+    font: inherit;
+    font-size: 15.5px;
+    border-radius: 20px;
+    padding: 11px 16px;
+    max-height: 110px;
+  }
+  footer button {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    font-size: 18px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  footer button:disabled { opacity: .4; }
+
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgb(0 0 0 / .5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 10; padding: 16px;
+  }
+  .overlay.hidden { display: none; }
+  .card {
+    background: var(--surface);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 460px;
+    max-height: 88dvh;
+    overflow-y: auto;
+    padding: 22px;
+  }
+  .card h2 { font-size: 20px; margin-bottom: 4px; }
+  .card .sub { font-size: 13px; color: var(--text2); margin-bottom: 16px; }
+  .card label { display: block; font-size: 12.5px; font-weight: 600; color: var(--text2); margin: 12px 0 5px; }
+  .card input, .card textarea {
+    width: 100%;
+    border: 1px solid var(--surface2);
+    background: var(--bg);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font: inherit;
+    font-size: 14.5px;
+    outline: none;
+  }
+  .card input:focus, .card textarea:focus { border-color: var(--accent); }
+  .card textarea { min-height: 84px; resize: vertical; }
+  .btn {
+    display: inline-block;
+    width: 100%;
+    border: none;
+    border-radius: 12px;
+    padding: 12px;
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.plain { background: var(--surface2); color: var(--text); }
+  .btn.danger { background: none; color: var(--danger); }
+  .row { display: flex; gap: 8px; }
+  .row .btn { flex: 1; }
+  .sec-title { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text2); margin: 20px 0 2px; }
+  .sec-title:first-of-type { margin-top: 4px; }
+  #pinError { color: var(--danger); font-size: 13px; margin-top: 8px; display: none; }
+  .badge {
+    display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 20px; margin-top: 6px;
+  }
+  .badge.ok { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+  .badge.warn { background: rgb(230 145 30 / .15); color: #e08a1e; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom));
+    transform: translateX(-50%) translateY(20px);
+    background: var(--text); color: var(--bg);
+    font-size: 13.5px; padding: 10px 18px; border-radius: 20px;
+    opacity: 0; transition: .25s; pointer-events: none; z-index: 20;
+    max-width: 90%; text-align: center;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><span class="dot"></span><span id="botName">Sabi</span></h1>
+  <button id="adminBtn" aria-label="Admin">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+</header>
+
+<main id="chat"></main>
+
+<footer>
+  <textarea id="msg" rows="1" placeholder="Shkruani një mesazh…"></textarea>
+  <button id="sendBtn" aria-label="Dërgo">↑</button>
+</footer>
+
+<!-- Admin: PIN -->
+<div class="overlay hidden" id="pinOverlay">
+  <div class="card">
+    <h2>Admin</h2>
+    <p class="sub">Vendosni kodin PIN për të hyrë në panelin e administrimit.</p>
+    <label for="pinInput">Kodi PIN</label>
+    <input type="password" id="pinInput" inputmode="numeric" placeholder="••••">
+    <p id="pinError">Kod i gabuar, provoni përsëri.</p>
+    <button class="btn primary" id="pinGo">Hyr</button>
+    <button class="btn plain" id="pinCancel">Anulo</button>
+  </div>
+</div>
+
+<!-- Admin: panel -->
+<div class="overlay hidden" id="adminOverlay">
+  <div class="card">
+    <h2>Paneli i Admin-it</h2>
+    <p class="sub">Çdo ndryshim funksionon menjëherë dhe ruhet në këtë pajisje.</p>
+
+    <p class="sec-title">Identiteti i bot-it</p>
+    <label for="fName">Emri i bot-it</label>
+    <input id="fName">
+    <label for="fGreeting">Mesazhi i përshëndetjes</label>
+    <textarea id="fGreeting"></textarea>
+    <label for="fPrompt">Personaliteti (udhëzimi sistemit)</label>
+    <textarea id="fPrompt"></textarea>
+
+    <p class="sec-title">Lidhja me AI-në</p>
+    <label for="fKey">Çelësi i API-së (OpenAI ose përputhës)</label>
+    <input id="fKey" type="password" placeholder="sk-…">
+    <span id="keyBadge" class="badge"></span>
+    <label for="fEndpoint">Adresa e API-së</label>
+    <input id="fEndpoint" inputmode="url">
+    <label for="fModel">Modeli</label>
+    <input id="fModel">
+    <label for="fTemp">Kreativiteti (0–1.5)</label>
+    <input id="fTemp" type="number" min="0" max="1.5" step="0.1">
+    <p class="sub" style="margin-top:10px">Pa çelës, aplikacioni punon në modalitet demo me përgjigje të gatshme.</p>
+
+    <p class="sec-title">Siguria</p>
+    <label for="fPin">Kod i ri PIN (min. 4 shifra)</label>
+    <input id="fPin" type="password" inputmode="numeric">
+
+    <button class="btn primary" id="saveBtn">Ruaj të gjitha ndryshimet</button>
+    <div class="row">
+      <button class="btn plain" id="restartBtn">Rinis bisedën</button>
+      <button class="btn plain" id="clearBtn">Fshi historikun</button>
+    </div>
+    <button class="btn plain" id="closeBtn">Mbyll</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---------- Storage ----------
+  var K = {
+    name: 'sabial_bot_name',
+    greeting: 'sabial_greeting',
+    prompt: 'sabial_system_prompt',
+    endpoint: 'sabial_endpoint',
+    model: 'sabial_model',
+    temp: 'sabial_temperature',
+    apiKey: 'sabial_api_key',
+    pin: 'sabial_pin',
+    history: 'sabial_history',
+    unlocked: 'sabial_unlocked'
+  };
+
+  var D = {
+    name: 'Sabi',
+    greeting: 'Përshëndetje! Unë jam Sabi, asistenti juaj virtual. Si mund t\u2019ju ndihmoj sot?',
+    prompt: 'Ti je Sabi, një asistent bisedues i miqshëm që flet vetëm në gjuhën shqipe. Përgjigju shkurt e qartë, me ton miqësor dhe profesional. Nëse nuk di diçka, thuaj sinqerisht që nuk e di dhe kërko sqarim.',
+    endpoint: 'https://api.openai.com/v1/chat/completions',
+    model: 'gpt-4o-mini',
+    temp: '0.7',
+    pin: '1234'
+  };
+
+  function cfg(key, dflt) {
+    return localStorage.getItem(key) !== null ? localStorage.getItem(key) : dflt;
+  }
+
+  // ---------- Elements ----------
+  var chat = document.getElementById('chat');
+  var msgInput = document.getElementById('msg');
+  var sendBtn = document.getElementById('sendBtn');
+  var botNameEl = document.getElementById('botName');
+  var toastEl = document.getElementById('toast');
+  var typingEl = null;
+
+  // ---------- Chat rendering ----------
+  function scrollDown() {
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  function addBubble(role, text, time) {
+    var row = document.createElement('div');
+    row.className = 'bubble-row' + (role === 'user' ? ' user' : '');
+    var b = document.createElement('div');
+    b.className = 'bubble ' + (role === 'user' ? 'user' : 'bot');
+    b.textContent = text;
+    var t = document.createElement('span');
+    t.className = 'time';
+    var d = time ? new Date(time) : new Date();
+    t.textContent = d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+    b.appendChild(t);
+    row.appendChild(b);
+    chat.appendChild(row);
+    return b;
+  }
+
+  function loadHistory() {
+    try {
+      return JSON.parse(localStorage.getItem(K.history) || '[]');
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveHistory(h) {
+    localStorage.setItem(K.history, JSON.stringify(h.slice(-200)));
+  }
+
+  function renderAll() {
+    chat.innerHTML = '';
+    var h = loadHistory();
+    for (var i = 0; i < h.length; i++) {
+      addBubble(h[i].r === 'user' ? 'user' : 'bot', h[i].t, h[i].d);
+    }
+    if (h.length === 0) {
+      var g = cfg(K.greeting, D.greeting);
+      addBubble('bot', g);
+      saveHistory([{ r: 'bot', t: g, d: Date.now() }]);
+    }
+    scrollDown();
+  }
+
+  // ---------- Typing indicator ----------
+  function showTyping() {
+    typingEl = document.createElement('div');
+    typingEl.className = 'typing';
+    typingEl.innerHTML = '<span></span><span></span><span></span>';
+    chat.appendChild(typingEl);
+    scrollDown();
+  }
+  function hideTyping() {
+    if (typingEl) { typingEl.remove(); typingEl = null; }
+  }
+
+  // ---------- Reply engine ----------
+  function demoReply(text) {
+    var t = text.toLowerCase();
+    if (t.indexOf('përshëndetje') > -1 || t.indexOf('pershendetje') > -1 || t.indexOf('tungjatjeta') > -1 || t.indexOf('hello') > -1) {
+      return 'Përshëndetje! Gëzohem që po bisedojmë. Çfarë ju duhet?';
+    }
+    if (t.indexOf('si je') > -1 || t.indexOf('si po kalon') > -1) {
+      return 'Po shkëlqej, faleminderit! Ju si ndiheni sot?';
+    }
+    if (t.indexOf('emri') > -1 || t.indexOf('kush je') > -1) {
+      return 'Unë jam ' + cfg(K.name, D.name) + ', asistenti juaj virtual brenda aplikacionit SabiAl.';
+    }
+    if (t.indexOf('faleminderit') > -1) {
+      return 'As nuk ka përse! Këtu jam kurdo që ju duhet.';
+    }
+    return 'Ju dëgjova: „' + text + '". Kjo është përgjigje demo — për përgjigje të plota nga AI-ja, admin-i duhet të shtojë çelësin e API-së në panelin e Admin-it.';
+  }
+
+  function callAPI(history, key, cb) {
+    var msgs = [{ role: 'system', content: cfg(K.prompt, D.prompt) }];
+    for (var i = 0; i < history.length; i++) {
+      msgs.push({ role: history[i].r === 'user' ? 'user' : 'assistant', content: history[i].t });
+    }
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { ctrl.abort(); }, 60000);
+    fetch(cfg(K.endpoint, D.endpoint), {
+      method: 'POST',
+      signal: ctrl.signal,
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({
+        model: cfg(K.model, D.model),
+        temperature: parseFloat(cfg(K.temp, D.temp)) || 0.7,
+        messages: msgs
+      })
+    }).then(function (res) {
+      clearTimeout(timer);
+      if (!res.ok) {
+        return res.text().then(function (body) {
+          throw new Error('Serveri kthehi gabim (' + res.status + '): ' + body.slice(0, 200));
+        });
+      }
+      return res.json();
+    }).then(function (json) {
+      var content = json && json.choices && json.choices[0] && json.choices[0].message && json.choices[0].message.content;
+      if (!content) { throw new Error('Përgjigja e serverit nuk u kuptua.'); }
+      cb(null, content.trim());
+    }).catch(function (err) {
+      clearTimeout(timer);
+      cb(err.name === 'AbortError' ? new Error('Kërkesës i doli afati. Provoni përsëri.') : err, null);
+    });
+  }
+
+  // Typewriter reveal
+  function reveal(bubble, fullText, done) {
+    var i = 0;
+    var step = Math.max(2, Math.ceil(fullText.length / 120));
+    var t = bubble.querySelector('.time');
+    var timer = setInterval(function () {
+      i = Math.min(fullText.length, i + step);
+      bubble.textContent = fullText.slice(0, i);
+      bubble.appendChild(t);
+      scrollDown();
+      if (i >= fullText.length) {
+        clearInterval(timer);
+        if (done) done();
+      }
+    }, 16);
+  }
+
+  var busy = false;
+
+  function send() {
+    var text = msgInput.value.trim();
+    if (!text || busy) return;
+    busy = true;
+    sendBtn.disabled = true;
+    msgInput.value = '';
+
+    var h = loadHistory();
+    h.push({ r: 'user', t: text, d: Date.now() });
+    addBubble('user', text, h[h.length - 1].d);
+    scrollDown();
+    showTyping();
+
+    function finish(replyText) {
+      hideTyping();
+      var bubble = addBubble('bot', '', Date.now());
+      h.push({ r: 'bot', t: replyText, d: Date.now() });
+      reveal(bubble, replyText, function () {
+        saveHistory(h);
+        busy = false;
+        sendBtn.disabled = false;
+      });
+    }
+
+    var key = cfg(K.apiKey, '');
+    if (key) {
+      callAPI(h, key, function (err, reply) {
+        if (err) {
+          hideTyping();
+          busy = false;
+          sendBtn.disabled = false;
+          toast(err.message || 'Ndodhi një gabim.');
+        } else {
+          finish(reply);
+        }
+      });
+    } else {
+      setTimeout(function () { finish(demoReply(text)); }, 700);
+    }
+  }
+
+  sendBtn.addEventListener('click', send);
+  msgInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      send();
+    }
+  });
+  msgInput.addEventListener('input', function () {
+    msgInput.style.height = 'auto';
+    msgInput.style.height = Math.min(msgInput.scrollHeight, 110) + 'px';
+  });
+
+  // ---------- Toast ----------
+  var toastTimer = null;
+  function toast(text) {
+    toastEl.textContent = text;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 2600);
+  }
+
+  // ---------- Admin ----------
+  var pinOverlay = document.getElementById('pinOverlay');
+  var adminOverlay = document.getElementById('adminOverlay');
+  var pinInput = document.getElementById('pinInput');
+  var pinError = document.getElementById('pinError');
+
+  function isUnlocked() { return sessionStorage.getItem(K.unlocked) === '1'; }
+  function refreshBotName() { botNameEl.textContent = cfg(K.name, D.name); }
+
+  document.getElementById('adminBtn').addEventListener('click', function () {
+    if (isUnlocked()) {
+      openPanel();
+    } else {
+      pinInput.value = '';
+      pinError.style.display = 'none';
+      pinOverlay.classList.remove('hidden');
+      setTimeout(function () { pinInput.focus(); }, 100);
+    }
+  });
+
+  function tryPin() {
+    if (pinInput.value === cfg(K.pin, D.pin)) {
+      sessionStorage.setItem(K.unlocked, '1');
+      pinOverlay.classList.add('hidden');
+      openPanel();
+    } else {
+      pinError.style.display = 'block';
+      pinInput.value = '';
+    }
+  }
+  document.getElementById('pinGo').addEventListener('click', tryPin);
+  pinInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') tryPin(); });
+  document.getElementById('pinCancel').addEventListener('click', function () {
+    pinOverlay.classList.add('hidden');
+  });
+
+  function openPanel() {
+    document.getElementById('fName').value = cfg(K.name, D.name);
+    document.getElementById('fGreeting').value = cfg(K.greeting, D.greeting);
+    document.getElementById('fPrompt').value = cfg(K.prompt, D.prompt);
+    document.getElementById('fKey').value = cfg(K.apiKey, '');
+    document.getElementById('fEndpoint').value = cfg(K.endpoint, D.endpoint);
+    document.getElementById('fModel').value = cfg(K.model, D.model);
+    document.getElementById('fTemp').value = cfg(K.temp, D.temp);
+    document.getElementById('fPin').value = '';
+    refreshKeyBadge();
+    adminOverlay.classList.remove('hidden');
+  }
+
+  function refreshKeyBadge() {
+    var badge = document.getElementById('keyBadge');
+    if (cfg(K.apiKey, '')) {
+      badge.textContent = 'Çelësi është vendosur — përgjigje të plota nga AI-ja';
+      badge.className = 'badge ok';
+    } else {
+      badge.textContent = 'Pa çelës — modalitet demo';
+      badge.className = 'badge warn';
+    }
+  }
+
+  document.getElementById('saveBtn').addEventListener('click', function () {
+    var name = document.getElementById('fName').value.trim() || D.name;
+    localStorage.setItem(K.name, name);
+    localStorage.setItem(K.greeting, document.getElementById('fGreeting').value.trim() || D.greeting);
+    localStorage.setItem(K.prompt, document.getElementById('fPrompt').value.trim() || D.prompt);
+    localStorage.setItem(K.apiKey, document.getElementById('fKey').value.trim());
+    var ep = document.getElementById('fEndpoint').value.trim();
+    localStorage.setItem(K.endpoint, /^https?:\/\//.test(ep) ? ep : D.endpoint);
+    localStorage.setItem(K.model, document.getElementById('fModel').value.trim() || D.model);
+    var temp = parseFloat(document.getElementById('fTemp').value);
+    localStorage.setItem(K.temp, isNaN(temp) ? D.temp : String(Math.min(1.5, Math.max(0, temp))));
+
+    var newPin = document.getElementById('fPin').value.trim();
+    if (newPin) {
+      if (/^\d{4,}$/.test(newPin)) {
+        localStorage.setItem(K.pin, newPin);
+        toast('Të gjitha u ruajtën, përfshi kodin e ri PIN.');
+      } else {
+        toast('Kodi PIN duhet të ketë së paku 4 shifra — pjesët e tjera u ruajtën.');
+      }
+    } else {
+      toast('Të gjitha ndryshimet u ruajtën.');
+    }
+    refreshBotName();
+    refreshKeyBadge();
+  });
+
+  document.getElementById('restartBtn').addEventListener('click', function () {
+    var g = cfg(K.greeting, D.greeting);
+    saveHistory([{ r: 'bot', t: g, d: Date.now() }]);
+    renderAll();
+    adminOverlay.classList.add('hidden');
+    toast('Biseda u rinis me përshëndetjen e re.');
+  });
+
+  document.getElementById('clearBtn').addEventListener('click', function () {
+    saveHistory([]);
+    chat.innerHTML = '';
+    adminOverlay.classList.add('hidden');
+    toast('Historiku u fshi.');
+  });
+
+  document.getElementById('closeBtn').addEventListener('click', function () {
+    adminOverlay.classList.add('hidden');
+  });
+
+  // ---------- Init ----------
+  refreshBotName();
+  renderAll();
+})();
+</script>
+</body>
+</html>

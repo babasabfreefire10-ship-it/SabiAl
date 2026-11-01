@@ -1,0 +1,13 @@
+{
+  "name": "SabiAl",
+  "short_name": "SabiAl",
+  "description": "Asistent bisedues AI në shqip",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0f1b2d",
+  "theme_color": "#0dada3",
+  "lang": "sq",
+  "icons": [
+    { "src": "icon.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
