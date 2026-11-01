@@ -6,18 +6,20 @@
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var chatViewModel = ChatViewModel()
+
     var body: some View {
-        VStack {
-            Image(systemName: "checkmark.seal.fill")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-                .font(.title)
-                .padding()
-            Text("Hello, world!")
-                .font(.title)
-                .padding()
+        TabView {
+            ChatView(viewModel: chatViewModel)
+                .tabItem {
+                    Label("Bisedë", systemImage: "bubble.left.and.bubble.right.fill")
+                }
+            AdminGateView(viewModel: chatViewModel)
+                .tabItem {
+                    Label("Admin", systemImage: "shield.lefthalf.filled")
+                }
         }
-        .padding()
+        .tint(Color(red: 0.05, green: 0.68, blue: 0.64))
     }
 }
 
