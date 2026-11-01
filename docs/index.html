@@ -144,7 +144,7 @@
   .card h2 { font-size: 20px; margin-bottom: 4px; }
   .card .sub { font-size: 13px; color: var(--text2); margin-bottom: 16px; }
   .card label { display: block; font-size: 12.5px; font-weight: 600; color: var(--text2); margin: 12px 0 5px; }
-  .card input, .card textarea {
+  .card input, .card textarea, .card select {
     width: 100%;
     border: 1px solid var(--surface2);
     background: var(--bg);
@@ -155,7 +155,9 @@
     font-size: 14.5px;
     outline: none;
   }
-  .card input:focus, .card textarea:focus { border-color: var(--accent); }
+  .card input:focus, .card textarea:focus, .card select:focus { border-color: var(--accent); }
+  .card select { appearance: none; -webkit-appearance: none; }
+  .card a { color: var(--accent); }
   .card textarea { min-height: 84px; resize: vertical; }
   .btn {
     display: inline-block;
@@ -238,16 +240,24 @@
     <textarea id="fPrompt"></textarea>
 
     <p class="sec-title">Lidhja me AI-në</p>
-    <label for="fKey">Çelësi i API-së (OpenAI ose përputhës)</label>
-    <input id="fKey" type="password" placeholder="sk-…">
+    <label for="fProvider">Shërbimi</label>
+    <select id="fProvider">
+      <option value="openai">OpenAI</option>
+      <option value="gemini">Google Gemini (tier falas)</option>
+      <option value="custom">Tjetër (endpoint vetjak)</option>
+    </select>
+    <label for="fKey">Çelësi i API-së</label>
+    <input id="fKey" type="password" placeholder="Çelësi juaj…">
     <span id="keyBadge" class="badge"></span>
+    <p class="sub" style="margin-top:8px">Për përgjigje të plota si një AI e vërtetë, merrni një çelës falas te <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>, zgjidhni „Google Gemini" më lart dhe ngjiteni çelësin këtu.</p>
     <label for="fEndpoint">Adresa e API-së</label>
     <input id="fEndpoint" inputmode="url">
     <label for="fModel">Modeli</label>
     <input id="fModel">
     <label for="fTemp">Kreativiteti (0–1.5)</label>
     <input id="fTemp" type="number" min="0" max="1.5" step="0.1">
-    <p class="sub" style="margin-top:10px">Pa çelës, aplikacioni punon në modalitet demo me përgjigje të gatshme.</p>
+    <button class="btn plain" id="testBtn" style="margin-top:10px">Testo lidhjen me AI-në</button>
+    <p class="sub" style="margin-top:8px">Pa çelës, aplikacioni punon në modalitet demo me përgjigje të gatshme.</p>
 
     <p class="sec-title">Siguria</p>
     <label for="fPin">Kod i ri PIN (min. 4 shifra)</label>
@@ -541,6 +551,10 @@
     document.getElementById('fModel').value = cfg(K.model, D.model);
     document.getElementById('fTemp').value = cfg(K.temp, D.temp);
     document.getElementById('fPin').value = '';
+    var ep = document.getElementById('fEndpoint').value;
+    document.getElementById('fProvider').value =
+      ep.indexOf('generativelanguage') > -1 ? 'gemini' :
+      (ep.indexOf('openai.com') > -1 ? 'openai' : 'custom');
     refreshKeyBadge();
     adminOverlay.classList.remove('hidden');
   }
@@ -600,6 +614,51 @@
 
   document.getElementById('closeBtn').addEventListener('click', function () {
     adminOverlay.classList.add('hidden');
+  });
+
+  document.getElementById('fProvider').addEventListener('change', function () {
+    if (this.value === 'gemini') {
+      document.getElementById('fEndpoint').value = 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions';
+      document.getElementById('fModel').value = 'gemini-2.0-flash';
+    } else if (this.value === 'openai') {
+      document.getElementById('fEndpoint').value = D.endpoint;
+      document.getElementById('fModel').value = D.model;
+    }
+  });
+
+  document.getElementById('testBtn').addEventListener('click', function () {
+    var btn = this;
+    var key = document.getElementById('fKey').value.trim();
+    if (!key) { toast('Shtoni fillimisht çelësin e API-së.'); return; }
+    btn.disabled = true;
+    var oldLabel = btn.textContent;
+    btn.textContent = 'Po provo…';
+    var ctrl = new AbortController();
+    var timer = setTimeout(function () { ctrl.abort(); }, 30000);
+    fetch(document.getElementById('fEndpoint').value.trim(), {
+      method: 'POST',
+      signal: ctrl.signal,
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
+      body: JSON.stringify({
+        model: document.getElementById('fModel').value.trim(),
+        messages: [{ role: 'user', content: 'Përgjigju vetëm me: OK' }]
+      })
+    }).then(function (res) {
+      clearTimeout(timer);
+      if (!res.ok) {
+        return res.text().then(function (body) {
+          throw new Error('Gabim ' + res.status + ': ' + body.slice(0, 140));
+        });
+      }
+      return res.json();
+    }).then(function () {
+      toast('Lidhja funksionon! AI-ja u përgjigj. Mos harroni ta ruani.');
+    }).catch(function (err) {
+      toast(err.name === 'AbortError' ? 'Kërkesës i doli afati.' : (err.message || 'Lidhja dështoi.'));
+    }).finally(function () {
+      btn.disabled = false;
+      btn.textContent = oldLabel;
+    });
   });
 
   // ---------- Init ----------
